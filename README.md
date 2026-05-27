@@ -74,4 +74,4 @@ On each run, the plugin checks for newer versions. If an update is available, yo
 
 Copyright 2026 Måns Grebäck. All rights reserved.
 
-This plugin is provided as-is for use with Glyphs.app. Redistribution, modification, or reverse engineering is not permitted without prior written consent.
+This plugin is provided as-is for use with Glyphs.app. 
