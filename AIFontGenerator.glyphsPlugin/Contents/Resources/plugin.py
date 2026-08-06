@@ -21,7 +21,7 @@ import zipfile
 import shutil
 from io import BytesIO
 
-PLUGIN_VERSION = "0.620"
+PLUGIN_VERSION = "0.621"
 VERSION_CHECK_URL = "https://aringtypeface.com/fontgen/plugin_version.json"
 
 from GlyphsApp import Glyphs, GSGlyph, GSPath, GSNode, GSComponent, GSAnchor, GSLINE, GSCURVE, GSOFFCURVE, Message, FILTER_MENU
@@ -1492,11 +1492,16 @@ class AIFontGenerator(GeneralPlugin):
                     if not skip_foreground:
                         layer.width = width
 
-                    # Add paths to target layer
+                    # Add paths to target layer.
+                    # Glyphs 4: layer.paths is a READ-ONLY helper (append is a silent no-op);
+                    # shapes is the mutable list in both Glyphs 3 and 4.
                     for path_nodes in paths:
                         gs_path = self._create_gspath(path_nodes)
                         if gs_path and len(gs_path.nodes) >= 2:
-                            target_layer.paths.append(gs_path)
+                            try:
+                                target_layer.shapes.append(gs_path)
+                            except AttributeError:
+                                target_layer.paths.append(gs_path)
 
                     # Add anchors (only when writing to foreground)
                     if not use_background and not skip_foreground:
@@ -1513,6 +1518,7 @@ class AIFontGenerator(GeneralPlugin):
                     skipped_count += 1
 
             except Exception as e:
+                print(f"[AIFontGenerator] Failed to insert glyph {glyph_name}: {e}")
                 continue
 
         # Second pass: create composite glyphs
@@ -1607,7 +1613,11 @@ class AIFontGenerator(GeneralPlugin):
                             if offset_x != 0 or offset_y != 0:
                                 component.position = (offset_x, offset_y)
 
-                            target_layer.components.append(component)
+                            # Glyphs 4: layer.components is read-only — append via shapes
+                            try:
+                                target_layer.shapes.append(component)
+                            except AttributeError:
+                                target_layer.components.append(component)
 
                         except Exception as ce:
                             pass
@@ -1616,6 +1626,7 @@ class AIFontGenerator(GeneralPlugin):
                 replaced_count += 1
 
             except Exception as e:
+                print(f"[AIFontGenerator] Failed to insert composite {glyph_name}: {e}")
                 continue
 
         return replaced_count
