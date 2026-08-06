@@ -57,13 +57,17 @@ class ServerClient:
         raise Exception(f"URL Error: {last_error.reason}")
 
     def generate_template(self, style_image_b64, progress_callback=None,
-                          glyphs_user=None):
+                          glyphs_user=None, style_prompt=None):
         """Generate a font template from style reference image via the server.
 
         Args:
             style_image_b64: Base64 encoded style reference image
             progress_callback: Optional callback(status_str) for progress updates
             glyphs_user: Optional user identification dict
+            style_prompt: Optional free-text style instructions. Experimental —
+                not part of the documented API, so the server may ignore it.
+                Sent under both "prompt" and "style_prompt" keys to maximize
+                the chance the backend picks it up.
 
         Returns:
             Tuple of (base64_image_data, log_dir)
@@ -76,8 +80,16 @@ class ServerClient:
         }
         if glyphs_user:
             gen_body["glyphs_user"] = glyphs_user
+        if style_prompt:
+            gen_body["prompt"] = style_prompt
+            gen_body["style_prompt"] = style_prompt
+            print(f"[AIFontGenerator] Sending style prompt: {style_prompt!r}")
 
         result = self._request("POST", "/generate", gen_body, timeout=30)
+        if style_prompt:
+            # Surface the raw response so we can see whether the server
+            # acknowledged the prompt in any way
+            print(f"[AIFontGenerator] /generate response: {result}")
         if not result.get("success"):
             raise Exception(f"Generation failed: {result.get('error', 'Unknown error')}")
 

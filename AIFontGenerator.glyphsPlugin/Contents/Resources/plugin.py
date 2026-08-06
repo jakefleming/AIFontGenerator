@@ -138,7 +138,7 @@ def show_glyph_selection_dialog():
 
     Returns:
         dict with 'glyphs', 'layer', 'existing', 'sidebearings', 'vertical_metrics',
-        'create_mode'
+        'create_mode', 'style_prompt'
         None if user cancelled
     """
     from AppKit import (
@@ -155,7 +155,7 @@ def show_glyph_selection_dialog():
     alert.addButtonWithTitle_("Cancel")
 
     full_w = 350
-    h = 275
+    h = 330
     container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, full_w, h))
 
     # --- Style reference section ---
@@ -236,6 +236,26 @@ def show_glyph_selection_dialog():
     overwriteMatrix.selectCellAtRow_column_(0, 0)
     overwriteMatrix.setEnabled_(False)
     container.addSubview_(overwriteMatrix)
+
+    # --- Style prompt section (experimental, server may ignore it) ---
+    y -= 26
+    labelPrompt = NSTextField.alloc().initWithFrame_(NSMakeRect(0, y, full_w, 16))
+    labelPrompt.setStringValue_("Style prompt (experimental):")
+    labelPrompt.setBezeled_(False)
+    labelPrompt.setDrawsBackground_(False)
+    labelPrompt.setEditable_(False)
+    labelPrompt.setSelectable_(False)
+    labelPrompt.setFont_(NSFont.boldSystemFontOfSize_(12))
+    container.addSubview_(labelPrompt)
+
+    y -= 30
+    promptField = NSTextField.alloc().initWithFrame_(NSMakeRect(10, y, full_w - 10, 24))
+    promptField.setBezeled_(True)
+    promptField.setEditable_(True)
+    promptField.setSelectable_(True)
+    promptField.setFont_(NSFont.systemFontOfSize_(13))
+    promptField.cell().setPlaceholderString_("e.g. geometric sans, monoline, rounded terminals")
+    container.addSubview_(promptField)
 
     # Callback to enable/disable overwrite sub-options
     def _poll_create_mode(timer):
@@ -334,6 +354,7 @@ def show_glyph_selection_dialog():
             'sidebearings': True,
             'vertical_metrics': True,
             'create_mode': create_mode,
+            'style_prompt': str(promptField.stringValue()).strip(),
         }
     return None
 
@@ -665,6 +686,7 @@ class AIFontGenerator(GeneralPlugin):
         include_sidebearings = options.get('sidebearings', True)
         include_vertical_metrics = options.get('vertical_metrics', True)
         create_mode = options.get('create_mode', 2)  # 0=new master, 1=background, 2=overwrite
+        style_prompt = options.get('style_prompt') or None
 
         # Get layers based on choice
         if glyph_choice == 'selected':
@@ -802,7 +824,8 @@ class AIFontGenerator(GeneralPlugin):
                     tmpl_b64, l_dir = client.generate_template(
                         style_image_b64,
                         progress_callback=None,
-                        glyphs_user=glyphs_user
+                        glyphs_user=glyphs_user,
+                        style_prompt=style_prompt
                     )
                     if not tmpl_b64:
                         self._net_error = "Server did not return a template image."
